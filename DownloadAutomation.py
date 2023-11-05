@@ -277,3 +277,12 @@ class BOS:
 class MOS(BOS):
     def __init__(self, fund_code, end_date, start_date='20210101'):
         super().__init__(fund_code, end_date, start_date)
+    
+    def download_dataset(self):
+        mapping={
+            '8186': self.download_dataset_8186()
+        }
+        return mapping[self.menu_code]
+
+
+
