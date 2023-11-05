@@ -5,6 +5,17 @@ from pyautogui import *
 import time
 from time import sleep as ____sleep
 
+# october constants
+fund_codes_october = [
+    "000051", "000052", "100001", "100004", "100008", "100019", "100030",
+    "100038", "100042", "100050", "100056", "100059", "100060", "100065",
+    "100066", "100069", "100073", "100077", "100078", "100079", "805701",
+    "805702", "805703", "805704", "A00001", "A00002", "A00003", "A00004", "A00005"
+]
+start_date_default = '20210101'
+end_date_october = '20231031'
+
+
 # global constants
 time_duration = 0.25
 time_interval_s = 0.25
@@ -16,8 +27,8 @@ time_cooldown = 10
 # coordinate constants
 # reference screen size: left-half 
 screen_width, screen_height = size()
-coord_bos_home_input_menu = Point(x=1038, y=42)
-coord_bos_home_menu_name = Point(x=1018, y=77)
+coord_home_input_menu = Point(x=1038, y=42)
+coord_home_menu_name = Point(x=1018, y=77)
 coord_bos_home_go = Point(x=1099, y=38)
 coord_8186_input_start_date = Point(x=137, y=173)
 coord_8186_input_end_date = Point(x=319, y=176)
@@ -28,6 +39,17 @@ coord_8186_fund_popup_confirm = Point(x=620, y=1078)
 coord_8186_search_go = Point(x=1168, y=126)
 coord_8186_excel_go = Point(x=1240, y=240)
 coord_home_logo = Point(x=100, y=34)
+coord_2160_input_fund_code = Point(x=107, y=175)
+coord_2160_input_start_date = Point(x=535, y=175)
+coord_2160_input_end_date = Point(x=630, y=175)
+coord_2160_search_go = coord_8186_search_go
+coord_2160_excel_go = Point(x=1152, y=219)
+coord_2160_excel_format_popup_button = Point(x=1033, y=367)
+coord_2205_input_fund_code = Point(x=113, y=211)
+coord_2205_input_reference_date = Point(x=114, y=241)
+coord_2205_search_go = coord_8186_search_go
+coord_2205_excel_go = Point(x=1157, y=304)
+coord_2205_excel_format_popup_button =Point(x=1035, y=464)
 
 # key constants
 key_save_as_windows = 'F12'
@@ -131,6 +153,7 @@ def ____cooltime(t=time_cooldown):
 
 def wait_loading():
     if is_image_present('image-8186-loading.png', timeout=1):
+        print('step: wait loading...')
         if wait_for_loading_to_disappear('image-8186-loading.png', timeout=300):
             return True
         else:
@@ -147,20 +170,23 @@ def wait_execution():
 
 def control_from_home_to_menu(menu_code):
     print(f'- step: open menu: {menu_code}')
-    click(coord_bos_home_input_menu)
+    click(coord_home_input_menu)
     time.sleep(time_interval)
     hotkey('ctrl', 'a')
     press('backspace')
     time.sleep(time_interval)
     typewrite(list(menu_code))
-    time.sleep(time_interval)
-    click(coord_bos_home_menu_name)
-    time.sleep(time_interval)
-    click(coord_bos_home_go)
-    time.sleep(time_interval)
+    time.sleep(time_interval_l)
+    press('enter')
+    time.sleep(time_interval_l)
+    # click(coord_home_menu_name)
+    # time.sleep(time_interval)
+    # click(coord_bos_home_go)
+    # time.sleep(time_interval)
 
+# 8186
 def control_on_8186_to_fund_popup(start_date, end_date, fund_code):
-    print(f'- step: oepn fund popup.')
+    print(f'- step: open fund popup.')
     click(coord_8186_input_start_date)
     time.sleep(time_interval)
     hotkey('ctrl', 'a')
@@ -237,9 +263,83 @@ def close_excel_and_goto_home():
     click(coord_home_logo)
     print(f'- step: return to home.')
 
+# 2160
+def control_on_2160_to_set_inputs(fund_code, start_date, end_date):
+    print(f'- step: set inputs.')
+    click(coord_2160_input_fund_code)
+    time.sleep(time_interval)
+    hotkey('ctrl', 'a')
+    press('backspace')
+    time.sleep(time_interval)
+    typewrite(list(fund_code))
+
+    time.sleep(time_interval)
+    click(coord_2160_input_start_date)
+    hotkey('ctrl', 'a')
+    press('backspace')
+    time.sleep(time_interval)
+    typewrite(list(start_date))
+    
+    time.sleep(time_interval)
+    click(coord_2160_input_end_date)
+    hotkey('ctrl', 'a')
+    press('backspace')
+    time.sleep(time_interval)
+    typewrite(list(end_date))
+
+    time.sleep(time_interval)
+    click(coord_2160_search_go)
+    time.sleep(time_interval_l)
+
+def control_on_2160_to_excel():
+    print(f'- step: click excel download button.')
+    time.sleep(time_interval_l)
+        # 로딩 화면이 사라질 때까지 기다린다.
+    if wait_for_loading_to_disappear('image-8186-loading.png'):
+    # 로딩 화면이 사라지면 특정 좌표를 클릭
+        print(f'- step: execute Excel.')
+        click(coord_2160_excel_go)
+        time.sleep(time_interval_l)
+        click(coord_2160_excel_format_popup_button)
+    time.sleep(time_interval_loading)
+    time.sleep(10)
+
+#2205
+def control_on_2205_to_set_inputs(fund_code, end_date):
+    reference_date = end_date
+    print(f'- step: set inputs.')
+    click(coord_2205_input_fund_code)
+    time.sleep(time_interval)
+    hotkey('ctrl', 'a')
+    press('backspace')
+    time.sleep(time_interval)
+    typewrite(list(fund_code))
+
+    time.sleep(time_interval)
+    click(coord_2205_input_reference_date)
+    hotkey('ctrl', 'a')
+    press('backspace')
+    time.sleep(time_interval)
+    typewrite(list(reference_date))
+
+    time.sleep(time_interval)
+    click(coord_2205_search_go)
+    time.sleep(time_interval_l)
+
+def control_on_2205_to_excel():
+    print(f'- step: click excel download button.')
+    time.sleep(time_interval_l)
+        # 로딩 화면이 사라질 때까지 기다린다.
+    if wait_for_loading_to_disappear('image-8186-loading.png'):
+    # 로딩 화면이 사라지면 특정 좌표를 클릭
+        print(f'- step: execute Excel.')
+        click(coord_2205_excel_go)
+        time.sleep(time_interval_l)
+        click(coord_2205_excel_format_popup_button)
+    time.sleep(time_interval_loading)
+    time.sleep(10)
 
 class BOS:
-
     def __init__(self, fund_code, end_date, start_date='20210101'):
         self.fund_code = fund_code
         self.start_date = start_date
@@ -253,10 +353,7 @@ class BOS:
         return self
 
     def download_dataset(self):
-        mapping={
-            '8186': self.download_dataset_8186()
-        }
-        return mapping[self.menu_code]
+        self.download_dataset_8186(),
 
     def download_dataset_8186(self):
         control_on_8186_to_fund_popup(self.start_date, self.end_date, self.fund_code)
@@ -275,14 +372,39 @@ class BOS:
         print(f'- save complete: {self.file_name} in {self.folder_path}')
 
 class MOS(BOS):
-    def __init__(self, fund_code, end_date, start_date='20210101'):
-        super().__init__(fund_code, end_date, start_date)
-    
     def download_dataset(self):
-        mapping={
-            '8186': self.download_dataset_8186()
+        mapping = {
+            '2160': self.download_dataset_2160,
+            '2205': self.download_dataset_2205
         }
-        return mapping[self.menu_code]
+        mapping[self.menu_code]()
 
+    def download_dataset_2160(self):
+        control_on_2160_to_set_inputs(self.fund_code, self.start_date, self.end_date)
+        wait_loading()
+        control_on_2160_to_excel()
+        wait_execution()
+        control_on_excel_to_save_as_popup()
+        wait_loading()
+        self.file_name = f'menu{self.menu_code}-code{self.fund_code}-save{get_today()}.csv'
+        self.folder_path = folder_path
+        control_on_save_as_popup(self.file_name, self.folder_path)
+        wait_loading()
+        close_excel_and_goto_home()
+        print(f'- save complete: {self.file_name} in {self.folder_path}')
 
+    def download_dataset_2205(self):
+        control_on_2205_to_set_inputs(self.fund_code, self.end_date)
+        wait_loading()
+        control_on_2205_to_excel()
+        wait_execution()
+        control_on_excel_to_save_as_popup()
+        wait_loading()
+        reference_date = self.end_date
+        self.file_name = f'menu{self.menu_code}-code{self.fund_code}-date{reference_date}-save{get_today()}.csv'
+        self.folder_path = folder_path
+        control_on_save_as_popup(self.file_name, self.folder_path)
+        wait_loading()
+        close_excel_and_goto_home()
+        print(f'- save complete: {self.file_name} in {self.folder_path}')
 
