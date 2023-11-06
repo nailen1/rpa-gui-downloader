@@ -15,7 +15,6 @@ fund_codes_october = [
 start_date_default = '20210101'
 end_date_october = '20231031'
 
-
 # global constants
 time_duration = 0.25
 time_interval_s = 0.25
@@ -23,6 +22,12 @@ time_interval = 0.50
 time_interval_l = 1
 time_interval_loading = 5
 time_cooldown = 10
+t_10 = 10
+t_15 = 15
+t_20 = 20
+t_30 = 30
+t_45 = 45
+t_60 = 60
 
 # coordinate constants
 # reference screen size: left-half 
@@ -408,3 +413,34 @@ class MOS(BOS):
         close_excel_and_goto_home()
         print(f'- save complete: {self.file_name} in {self.folder_path}')
 
+def get_office_system(system_name, fund_code, start_date, end_date):
+    mapping = {
+        'BOS': BOS,
+        'MOS': MOS
+    }
+    return mapping[system_name](fund_code, start_date=start_date, end_date=end_date)
+
+def check_download_results(menu_code, fund_code, input_date, save_date_yyyymmdd, save_folder_path):
+    file_name_with_input_date = f'menu{menu_code}-code{fund_code}-save{save_date_yyyymmdd}.csv'
+    file_name_without_input_date = f'menu{menu_code}-code{fund_code}-date{input_date}-save{save_date_yyyymmdd}.csv'
+    mapping = {
+        '8186': file_name_without_input_date,
+        '2160': file_name_without_input_date,
+        '2205': file_name_with_input_date
+    }
+    file_name = mapping[menu_code]
+    file_path = os.path.join(save_folder_path, file_name)
+    if os.path.exists(file_path):
+        print(f'- check: {file_name} in {folder_path}')
+        return True
+    else:
+        print(f'- check: {file_name} in {folder_path}')
+        return False
+
+class DownloaderMacro:
+    def __init__(self, fund_code, end_date, start_date='20210101'):
+        self.fund_code = fund_code
+        self.start_date = start_date
+        self.end_date = end_date
+        self.bos = get_office_system('BOS', fund_code, self.start_date, self.end_date)
+        self.mos = get_office_system('MOS', fund_code, self.start_date, self.end_date)
