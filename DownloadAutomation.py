@@ -4,6 +4,8 @@ import pyautogui
 from pyautogui import *
 import time
 from time import sleep as ____sleep
+import re
+
 
 # october constants
 fund_codes_october = [
@@ -31,30 +33,42 @@ t_60 = 60
 
 # coordinate constants
 # reference screen size: left-half 
+
 screen_width, screen_height = size()
 coord_home_input_menu = Point(x=1038, y=42)
 coord_home_menu_name = Point(x=1018, y=77)
 coord_bos_home_go = Point(x=1099, y=38)
+coord_home_logo = Point(x=100, y=34)
+
 coord_8186_input_start_date = Point(x=137, y=173)
 coord_8186_input_end_date = Point(x=319, y=176)
 coord_8186_input_fund_code = Point(x=505, y=169)
 coord_8186_fund_go = Point(x=540, y=173)
 coord_8186_fund_popup_checkbox = Point(x=258, y=604)
 coord_8186_fund_popup_confirm = Point(x=620, y=1078)
-coord_8186_search_go = Point(x=1168, y=126)
+coord_8186_search_go = Point(x=1170, y=125)
 coord_8186_excel_go = Point(x=1240, y=240)
-coord_home_logo = Point(x=100, y=34)
+
 coord_2160_input_fund_code = Point(x=107, y=175)
 coord_2160_input_start_date = Point(x=535, y=175)
 coord_2160_input_end_date = Point(x=630, y=175)
 coord_2160_search_go = coord_8186_search_go
 coord_2160_excel_go = Point(x=1152, y=219)
 coord_2160_excel_format_popup_button = Point(x=1033, y=367)
+
 coord_2205_input_fund_code = Point(x=113, y=211)
 coord_2205_input_reference_date = Point(x=114, y=241)
 coord_2205_search_go = coord_8186_search_go
 coord_2205_excel_go = Point(x=1157, y=304)
 coord_2205_excel_format_popup_button =Point(x=1035, y=464)
+
+coord_2820_input_fund_code = Point(x=121, y=212)
+coord_2820_input_start_date = Point(x=120, y=241)
+coord_2820_input_end_date = Point(x=237, y=239)
+coord_2820_search_go = coord_8186_search_go
+coord_2820_excel_go = Point(x=1154, y=280)
+coord_2820_excel_format_popup_button = Point(x=1036, y=434)
+
 
 # key constants
 key_save_as_windows = 'F12'
@@ -63,9 +77,52 @@ file_format_select_key = 'c'
 folder_path = "C:\\rpa-download-datasets"
 
 
-def get_today():
-    return datetime.datetime.now().strftime('%Y%m%d%H%M')
+def get_today(option='yyyymmddhhmm'):
+    yyyymmddhhmm = datetime.datetime.now().strftime('%Y%m%d%H%M')
+    yyyymmdd = datetime.datetime.now().strftime('%Y%m%d')
+    mapping = {
+        'yyyymmddhhmm': yyyymmddhhmm,
+        'yyyymmdd': yyyymmdd
+    }
+    return mapping[option]
 
+def scan_files_including_regex(file_folder, regex):
+    with os.scandir(file_folder) as files:
+        lst = [file.name for file in files if re.findall(regex, file.name)]
+    return lst
+
+def is_dataset_downloaded(menu_code, fund_code, input_date, save_date_yyyymmdd, save_folder_path):
+    regex_file_name_without_input_date = f'menu{menu_code}-code{fund_code}-save{save_date_yyyymmdd}'
+    regex_file_name_with_input_date = f'menu{menu_code}-code{fund_code}-date{input_date}-save{save_date_yyyymmdd}'
+    mapping = {
+        '8186': regex_file_name_without_input_date,
+        '2160': regex_file_name_without_input_date,
+        '2205': regex_file_name_with_input_date,
+        '2820': regex_file_name_with_input_date,
+    }
+    regex_file_name = mapping[menu_code]
+    lst = scan_files_including_regex(save_folder_path, regex_file_name)
+    if len(lst) !=0:
+        print(f'- download success: {fund_code} in {save_folder_path}')
+        return True
+    else:
+        print(f'- download fail: {fund_code} not in {save_folder_path}')
+        return False
+    
+def are_datasets_downloaded(menu_code, fund_codes, input_date, save_date_yyyymmdd, save_folder_path):
+    dct = {}
+    bucket_downloaded = []
+    bucket_not_downloaded = []
+    for fund_code in fund_codes:
+        is_downloaded = is_dataset_downloaded(menu_code, fund_code, input_date, save_date_yyyymmdd, save_folder_path)
+        if is_downloaded:
+            bucket_downloaded.append(fund_code)
+        else:
+            bucket_not_downloaded.append(fund_code)
+    dct[f'{menu_code}_downloaded'] = bucket_downloaded
+    dct[f'{menu_code}_not_downloaded'] = bucket_not_downloaded
+    return dct
+    
 def wait_for_loading_to_disappear(loading_image, timeout=300):
     """
     loading_image: 로딩 화면의 스크린샷 파일 경로 (예: 'loading.png')
@@ -264,9 +321,8 @@ def close_excel_and_goto_home():
     # click_image('image-excel-header.png', timeout=30)
     ____cooltime()
     if is_image_present('image-excel-header.png', timeout=30):
-        hotkey('alt', 'F4')
-    click(coord_home_logo)
-    print(f'- step: return to home.')
+        os.system("taskkill /im EXCEL.EXE /f")
+        print(f'- step: return to home.')
 
 # 2160
 def control_on_2160_to_set_inputs(fund_code, start_date, end_date):
@@ -309,7 +365,7 @@ def control_on_2160_to_excel():
     time.sleep(time_interval_loading)
     time.sleep(10)
 
-#2205
+# 2205
 def control_on_2205_to_set_inputs(fund_code, end_date):
     reference_date = end_date
     print(f'- step: set inputs.')
@@ -343,6 +399,48 @@ def control_on_2205_to_excel():
         click(coord_2205_excel_format_popup_button)
     time.sleep(time_interval_loading)
     time.sleep(10)
+
+# 2820
+def control_on_2820_to_set_inputs(fund_code, start_date, end_date):
+    print(f'- step: set inputs.')
+    click(coord_2820_input_fund_code)
+    time.sleep(time_interval)
+    hotkey('ctrl', 'a')
+    press('backspace')
+    time.sleep(time_interval)
+    typewrite(list(fund_code))
+
+    time.sleep(time_interval)
+    click(coord_2820_input_start_date)
+    hotkey('ctrl', 'a')
+    press('backspace')
+    time.sleep(time_interval)
+    typewrite(list(start_date))
+    
+    time.sleep(time_interval)
+    click(coord_2820_input_end_date)
+    hotkey('ctrl', 'a')
+    press('backspace')
+    time.sleep(time_interval)
+    typewrite(list(end_date))
+
+    time.sleep(time_interval)
+    click(coord_2820_search_go)
+    time.sleep(time_interval_l)
+
+def control_on_2820_to_excel():
+    print(f'- step: click excel download button.')
+    time.sleep(time_interval_l)
+        # 로딩 화면이 사라질 때까지 기다린다.
+    if wait_for_loading_to_disappear('image-8186-loading.png'):
+    # 로딩 화면이 사라지면 특정 좌표를 클릭
+        print(f'- step: execute Excel.')
+        click(coord_2820_excel_go)
+        time.sleep(time_interval_l)
+        click(coord_2820_excel_format_popup_button)
+    time.sleep(time_interval_loading)
+    time.sleep(10)
+
 
 class BOS:
     def __init__(self, fund_code, end_date, start_date='20210101'):
@@ -380,7 +478,8 @@ class MOS(BOS):
     def download_dataset(self):
         mapping = {
             '2160': self.download_dataset_2160,
-            '2205': self.download_dataset_2205
+            '2205': self.download_dataset_2205,
+            '2820': self.download_dataset_2820
         }
         mapping[self.menu_code]()
 
@@ -410,7 +509,28 @@ class MOS(BOS):
         self.folder_path = folder_path
         control_on_save_as_popup(self.file_name, self.folder_path)
         wait_loading()
-        close_excel_and_goto_home()
+        if is_dataset_downloaded(self.menu_code, self.fund_code, reference_date, get_today(option='yyyymmdd'), self.folder_path):
+            close_excel_and_goto_home()
+        else:
+            self.download_dataset_2205()
+        print(f'- save complete: {self.file_name} in {self.folder_path}')
+
+    def download_dataset_2820(self):
+        control_on_2820_to_set_inputs(self.fund_code, self.start_date, self.end_date)
+        wait_loading()
+        control_on_2820_to_excel()
+        wait_execution()
+        control_on_excel_to_save_as_popup()
+        wait_loading()
+        reference_date = self.end_date
+        self.file_name = f'menu{self.menu_code}-code{self.fund_code}-date{reference_date}-save{get_today()}.csv'
+        self.folder_path = folder_path
+        control_on_save_as_popup(self.file_name, self.folder_path)
+        wait_loading()
+        if is_dataset_downloaded(self.menu_code, self.fund_code, reference_date, get_today(option='yyyymmdd'), self.folder_path):
+            close_excel_and_goto_home()
+        else:
+            self.download_dataset_2820()
         print(f'- save complete: {self.file_name} in {self.folder_path}')
 
 def get_office_system(system_name, fund_code, start_date, end_date):
