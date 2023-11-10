@@ -5,6 +5,7 @@ from pyautogui import *
 import time
 from time import sleep as ____sleep
 import re
+import psutil
 
 
 # october constants
@@ -74,7 +75,7 @@ coord_2820_excel_format_popup_button = Point(x=1036, y=434)
 key_save_as_windows = 'F12'
 # file_name = f'menu{menu_code}-code{fund_code}-save{get_today()}.csv'
 file_format_select_key = 'c'
-folder_path = "C:\\rpa-download-datasets"
+folder_path = "C:\\rpa-download-datasets-test"
 
 
 def get_today(option='yyyymmddhhmm'):
@@ -101,13 +102,14 @@ def is_dataset_downloaded(menu_code, fund_code, input_date, save_date_yyyymmdd, 
         '2820': regex_file_name_with_input_date,
     }
     regex_file_name = mapping[menu_code]
+    print(f"- is dataset regex '{regex_file_name}' at '{save_folder_path}' downloaded?")
     lst = scan_files_including_regex(save_folder_path, regex_file_name)
-    if len(lst) !=0:
-        print(f'- download success: {fund_code} in {save_folder_path}')
-        return True
-    else:
-        print(f'- download fail: {fund_code} not in {save_folder_path}')
+    if len(lst) ==0:
+        print(f'- no: {fund_code} not in {save_folder_path}')
         return False
+    else:
+        print(f'- yes: {fund_code} in {save_folder_path}')
+        return True
     
 def are_datasets_downloaded(menu_code, fund_codes, input_date, save_date_yyyymmdd, save_folder_path):
     dct = {}
@@ -209,13 +211,13 @@ def is_image_present(image_path, confidence_level=0.8, timeout=2):
         
         time.sleep(1)
 
-def ____cooltime(t=time_cooldown):
+def cooltime(t=time_cooldown):
     time.sleep(t)
     return None
 
 def wait_loading():
     if is_image_present('image-8186-loading.png', timeout=1):
-        print('step: wait loading...')
+        print('- step: wait loading...')
         if wait_for_loading_to_disappear('image-8186-loading.png', timeout=300):
             return True
         else:
@@ -282,12 +284,15 @@ def control_on_8186_to_excel():
     print(f'- step: load system dataset.')
     time.sleep(time_interval)
     click(coord_8186_search_go)
-    time.sleep(time_interval)
     # 로딩 화면이 사라질 때까지 기다린다.
     if wait_for_loading_to_disappear('image-8186-loading.png'):
         # 로딩 화면이 사라지면 특정 좌표를 클릭
-        print(f'- step: execute Excel.')
-        click(coord_8186_excel_go)
+        if wait_for_loading_to_disappear('image-excel-load-message.png'):
+            print(f'- step: execute Excel.')
+            click(coord_8186_excel_go)
+            cooltime(10)
+            if is_image_present('excel-caution-popup.png', timeout=5):
+                press('enter')
     time.sleep(time_interval_loading)
 
 def control_on_excel_to_save_as_popup():
@@ -319,10 +324,31 @@ def control_on_save_as_popup(file_name, folder_path):
 def close_excel_and_goto_home():
     print(f'- step: terminate Excel.')
     # click_image('image-excel-header.png', timeout=30)
-    ____cooltime()
+    cooltime()
     if is_image_present('image-excel-header.png', timeout=30):
         os.system("taskkill /im EXCEL.EXE /f")
         print(f'- step: return to home.')
+
+def terminate_excel():
+    for process in psutil.process_iter(['pid', 'name']):
+        if process.info['name'] == 'EXCEL.EXE':
+            process.terminate()
+            process.wait()
+            print("- step: terminate Microsoft Excel.")
+            return
+    print("- Microsoft Excel is not in process.")
+
+def close_excel():
+    print(f'- step: terminate Excel.')
+    # click_image('image-excel-header.png', timeout=30)
+    cooltime()
+    if is_image_present('image-excel-header.png', timeout=20):
+        os.system("taskkill /im EXCEL.EXE /f")
+        print(f'- step: return to home.')
+
+def goto_home():
+    cooltime()
+    print(f'- step: return to home.')
 
 # 2160
 def control_on_2160_to_set_inputs(fund_code, start_date, end_date):
@@ -392,13 +418,16 @@ def control_on_2205_to_excel():
     time.sleep(time_interval_l)
         # 로딩 화면이 사라질 때까지 기다린다.
     if wait_for_loading_to_disappear('image-8186-loading.png'):
-    # 로딩 화면이 사라지면 특정 좌표를 클릭
-        print(f'- step: execute Excel.')
-        click(coord_2205_excel_go)
-        time.sleep(time_interval_l)
-        click(coord_2205_excel_format_popup_button)
-    time.sleep(time_interval_loading)
-    time.sleep(10)
+        # 로딩 화면이 사라지면 특정 좌표를 클릭
+        if wait_for_loading_to_disappear('image-excel-load-message.png'):
+            print(f'- step: execute Excel.')
+            click(coord_2205_excel_go)
+            time.sleep(time_interval_l)
+            click(coord_2205_excel_format_popup_button)
+            cooltime(15)
+            if is_image_present('excel-caution-popup.png', timeout=10):
+                click_image('excel-caution-confirm.png')
+    cooltime(10)
 
 # 2820
 def control_on_2820_to_set_inputs(fund_code, start_date, end_date):
@@ -459,20 +488,27 @@ class BOS:
         self.download_dataset_8186(),
 
     def download_dataset_8186(self):
-        control_on_8186_to_fund_popup(self.start_date, self.end_date, self.fund_code)
-        wait_loading()
-        control_on_fund_popup()
-        wait_loading()
-        control_on_8186_to_excel()
-        wait_execution()
-        control_on_excel_to_save_as_popup()
-        wait_loading()
         self.file_name = f'menu{self.menu_code}-code{self.fund_code}-save{get_today()}.csv'
         self.folder_path = folder_path
-        control_on_save_as_popup(self.file_name, self.folder_path)
-        wait_loading()
-        close_excel_and_goto_home()
-        print(f'- save complete: {self.file_name} in {self.folder_path}')
+        if is_dataset_downloaded(self.menu_code, self.fund_code, input_date=None, save_date_yyyymmdd=get_today(option='yyyymmdd'), save_folder_path=self.folder_path):
+            terminate_excel()
+        else:
+            control_on_8186_to_fund_popup(self.start_date, self.end_date, self.fund_code)
+            wait_loading()
+            control_on_fund_popup()
+            wait_loading()
+            control_on_8186_to_excel()
+            wait_execution()
+            control_on_excel_to_save_as_popup()
+            wait_loading()
+            control_on_save_as_popup(self.file_name, self.folder_path)
+            wait_loading()
+            cooltime()
+            self.download_dataset_8186()
+            print(f'- save complete: {self.file_name} in {self.folder_path}')
+            print(f'- step: return to home.')
+            goto_home()
+
 
 class MOS(BOS):
     def download_dataset(self):
@@ -484,54 +520,69 @@ class MOS(BOS):
         mapping[self.menu_code]()
 
     def download_dataset_2160(self):
-        control_on_2160_to_set_inputs(self.fund_code, self.start_date, self.end_date)
-        wait_loading()
-        control_on_2160_to_excel()
-        wait_execution()
-        control_on_excel_to_save_as_popup()
-        wait_loading()
         self.file_name = f'menu{self.menu_code}-code{self.fund_code}-save{get_today()}.csv'
         self.folder_path = folder_path
-        control_on_save_as_popup(self.file_name, self.folder_path)
-        wait_loading()
-        close_excel_and_goto_home()
-        print(f'- save complete: {self.file_name} in {self.folder_path}')
+        if is_dataset_downloaded(self.menu_code, self.fund_code, input_date=None, save_date_yyyymmdd=get_today(option='yyyymmdd'), save_folder_path=self.folder_path):
+            terminate_excel()
+        else:
+            control_on_2160_to_set_inputs(self.fund_code, self.start_date, self.end_date)
+            wait_loading()
+            control_on_2160_to_excel()
+            wait_execution()
+            control_on_excel_to_save_as_popup()
+            wait_loading()
+            control_on_save_as_popup(self.file_name, self.folder_path)
+            wait_loading()
+            cooltime()
+            self.download_dataset_2160()
+            print(f'- save complete: {self.file_name} in {self.folder_path}')
+            print(f'- step: return to home.')
+            goto_home()
+
 
     def download_dataset_2205(self):
-        control_on_2205_to_set_inputs(self.fund_code, self.end_date)
-        wait_loading()
-        control_on_2205_to_excel()
-        wait_execution()
-        control_on_excel_to_save_as_popup()
-        wait_loading()
         reference_date = self.end_date
         self.file_name = f'menu{self.menu_code}-code{self.fund_code}-date{reference_date}-save{get_today()}.csv'
         self.folder_path = folder_path
-        control_on_save_as_popup(self.file_name, self.folder_path)
-        wait_loading()
         if is_dataset_downloaded(self.menu_code, self.fund_code, reference_date, get_today(option='yyyymmdd'), self.folder_path):
-            close_excel_and_goto_home()
+            terminate_excel()
         else:
+            control_on_2205_to_set_inputs(self.fund_code, self.end_date)
+            wait_loading()
+            control_on_2205_to_excel()
+            wait_execution()
+            control_on_excel_to_save_as_popup()
+            wait_loading()
+            control_on_save_as_popup(self.file_name, self.folder_path)
+            wait_loading()
+            cooltime()
             self.download_dataset_2205()
-        print(f'- save complete: {self.file_name} in {self.folder_path}')
+            print(f'- save complete: {self.file_name} in {self.folder_path}')
+            print(f'- step: return to home.')
+            goto_home()
+
 
     def download_dataset_2820(self):
-        control_on_2820_to_set_inputs(self.fund_code, self.start_date, self.end_date)
-        wait_loading()
-        control_on_2820_to_excel()
-        wait_execution()
-        control_on_excel_to_save_as_popup()
-        wait_loading()
         reference_date = self.end_date
         self.file_name = f'menu{self.menu_code}-code{self.fund_code}-date{reference_date}-save{get_today()}.csv'
         self.folder_path = folder_path
-        control_on_save_as_popup(self.file_name, self.folder_path)
-        wait_loading()
         if is_dataset_downloaded(self.menu_code, self.fund_code, reference_date, get_today(option='yyyymmdd'), self.folder_path):
-            close_excel_and_goto_home()
+            print(f'-  complete: {self.file_name} in {self.folder_path}')
+            terminate_excel()
         else:
+            control_on_2820_to_set_inputs(self.fund_code, self.start_date, self.end_date)
+            wait_loading()
+            control_on_2820_to_excel()
+            wait_execution()
+            control_on_excel_to_save_as_popup()
+            wait_loading()
+            control_on_save_as_popup(self.file_name, self.folder_path)
+            wait_loading()
+            cooltime()
             self.download_dataset_2820()
-        print(f'- save complete: {self.file_name} in {self.folder_path}')
+            print(f'- save complete: {self.file_name} in {self.folder_path}')
+            print(f'- step: return to home.')
+            goto_home()
 
 def get_office_system(system_name, fund_code, start_date, end_date):
     mapping = {
