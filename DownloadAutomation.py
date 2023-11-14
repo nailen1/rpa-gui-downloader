@@ -87,10 +87,14 @@ def get_today(option='yyyymmddhhmm'):
     }
     return mapping[option]
 
-def scan_files_including_regex(file_folder, regex):
+def scan_files_including_regex(file_folder, regex, option='name'):
     with os.scandir(file_folder) as files:
-        lst = [file.name for file in files if re.findall(regex, file.name)]
-    return lst
+        lst = [file.name for file in files if re.findall(regex, file.name)]    
+    mapping = {
+        'name': lst,
+        'path': [os.path.join(file_folder, file_name) for file_name in lst]
+    }
+    return mapping[option]
 
 def is_dataset_downloaded(menu_code, fund_code, input_date, save_date_yyyymmdd, save_folder_path):
     regex_file_name_without_input_date = f'menu{menu_code}-code{fund_code}-save{save_date_yyyymmdd}'
