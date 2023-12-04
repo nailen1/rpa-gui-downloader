@@ -15,8 +15,29 @@ fund_codes_october = [
     "100066", "100069", "100073", "100077", "100078", "100079", "805701",
     "805702", "805703", "805704", "A00001", "A00002", "A00003", "A00004", "A00005"
 ]
+
+# 2023-12-03 기준
+fund_codes_full = ['000002', '000003', '000004', '000005', '000006', '000009',
+       '000010', '000011', '000012', '000014', '000018', '000019',
+       '000020', '000021', '000022', '000027', '000028', '000029',
+       '000038', '000039', '000040', '000041', '000042', '000043',
+       '000044', '000045', '000046', '000048', '000050', '000051',
+       '000052', '000053', '000054', '000055', '100001', '100002',
+       '100003', '100004', '100005', '100006', '100007', '100008',
+       '100009', '10000F', '100010', '100011', '100015', '100019',
+       '100020', '100021', '100022', '100023', '100024', '100025',
+       '100030', '100031', '100033', '100034', '100035', '100036',
+       '100037', '100038', '100039', '100042', '100043', '100044',
+       '100048', '10004W', '100050', '100051', '100052', '100056',
+       '100057', '100058', '100059', '100060', '100061', '100064',
+       '100065', '100066', '100067', '100068', '100069', '100070',
+       '100072', '100073', '100076', '100077', '100078', '100079',
+       '805701', '805702', '805703', '805704', 'A00001', 'A00002',
+       'A00003', 'A00004', 'A00005']
+
 start_date_default = '20210101'
 end_date_october = '20231031'
+end_date_nov = '20231130'
 
 # global constants
 time_duration = 0.25
@@ -75,7 +96,7 @@ coord_2820_excel_format_popup_button = Point(x=1036, y=434)
 key_save_as_windows = 'F12'
 # file_name = f'menu{menu_code}-code{fund_code}-save{get_today()}.csv'
 file_format_select_key = 'c'
-folder_path = "C:\\rpa-download-datasets-test"
+folder_path = "C:\\rpa-download-datasets-8186s"
 
 
 def get_today(option='yyyymmddhhmm'):
@@ -95,6 +116,12 @@ def scan_files_including_regex(file_folder, regex, option='name'):
         'path': [os.path.join(file_folder, file_name) for file_name in lst]
     }
     return mapping[option]
+
+def preprocess_2110(df_2110_raw):
+    df = df_2110_raw.iloc[1:, :]
+    df.columns = df_2110_raw.iloc[0, :].tolist()
+    df = df[['펀드명', '펀드', '설정일', '만기일', '펀드구분', '채권편입비', '주식편입비', '자본금']]
+    return df
 
 def is_dataset_downloaded(menu_code, fund_code, input_date, save_date_yyyymmdd, save_folder_path):
     regex_file_name_without_input_date = f'menu{menu_code}-code{fund_code}-save{save_date_yyyymmdd}'
@@ -568,7 +595,8 @@ class MOS(BOS):
 
     def download_dataset_2820(self):
         reference_date = self.end_date
-        self.file_name = f'menu{self.menu_code}-code{self.fund_code}-date{reference_date}-save{get_today()}.csv'
+        # self.file_name = f'menu{self.menu_code}-code{self.fund_code}-date{reference_date}-save{get_today()}.csv'
+        self.file_name = f'menu{self.menu_code}-code{self.fund_code}-save{get_today()}.csv'
         self.folder_path = folder_path
         if is_dataset_downloaded(self.menu_code, self.fund_code, reference_date, get_today(option='yyyymmdd'), self.folder_path):
             print(f'-  complete: {self.file_name} in {self.folder_path}')
@@ -619,3 +647,4 @@ class DownloaderMacro:
         self.end_date = end_date
         self.bos = get_office_system('BOS', fund_code, self.start_date, self.end_date)
         self.mos = get_office_system('MOS', fund_code, self.start_date, self.end_date)
+
