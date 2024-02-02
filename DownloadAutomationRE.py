@@ -189,7 +189,7 @@ def wait_for_loading_to_disappear(image_path, timeout=300):
             if location is None:
                 return True  # 로딩 화면이 없으면 함수 종료
         except ImageNotFoundException:
-            print("Loading image not found on the screen, assuming loading is complete.")
+            print("-- Loading image not found on the screen, assuming loading is complete.")
             return True  # 이미지를 찾지 못하는 예외 발생 시, 로딩이 완료된 것으로 가정하고 함수 종료
         
         # 로딩 화면이 화면에 있으면 잠시 대기 후 다시 확인
@@ -408,7 +408,9 @@ def close_excel():
 
 def goto_home():
     cooltime()
-    print(f'- step: return to home.')
+    print(f'- step: finish download cycle.')
+    print()
+
 
 # 2160
 def control_on_2160_to_set_inputs(fund_code, start_date, end_date):
