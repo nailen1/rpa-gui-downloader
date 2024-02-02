@@ -16,7 +16,7 @@ from ShiningPebbles import *
 # Since the OCR has already been done and the data has been printed in the output,
 # I will manually transcribe the output into a Python list.
 
-fund_codes_dec = ['000051', '000052', '100001', '100004', '100008', '100019',
+fund_codes = ['000051', '000052', '100001', '100004', '100008', '100019',
        '100030', '100038', '100042', '100050', '100056', '100059',
        '100060', '100065', '100066', '100069', '100073', '100077',
        '100078', '100079', '805701', '805702', '805703', '805704',
@@ -104,7 +104,7 @@ coord_2160_excel_go = Point(x=1152, y=219)
 coord_2160_excel_format_popup_button = Point(x=1033, y=367)
 
 coord_2205_input_fund_code = Point(x=113, y=211)
-coord_2205_input_reference_date = Point(x=114, y=241)
+coord_2205_input_input_date = Point(x=114, y=241)
 coord_2205_search_go = coord_8186_search_go
 coord_2205_excel_go = Point(x=1157, y=304)
 coord_2205_excel_format_popup_button =Point(x=1035, y=464)
@@ -126,9 +126,7 @@ coord_2820_excel_format_popup_button = Point(x=1036, y=434)
 
 # key constants
 key_save_as_windows = 'F12'
-# file_name = f'menu{menu_code}-code{fund_code}-save{get_today()}.csv'
 file_format_select_key = 'c'
-folder_path = "C:\\rpa-download-datasets-2024JAN"
 
 def preprocess_2110(df_2110_raw):
     df = df_2110_raw.iloc[1:, :]
@@ -136,18 +134,21 @@ def preprocess_2110(df_2110_raw):
     df = df[['펀드명', '펀드', '설정일', '만기일', '펀드구분', '채권편입비', '주식편입비', '자본금']]
     return df
 
-def is_dataset_downloaded(menu_code, fund_code, input_date, save_date_yyyymmdd, save_folder_path):
-    regex_file_name_without_input_date = f'menu{menu_code}-code{fund_code}-save{save_date_yyyymmdd}'
-    regex_file_name_with_input_date = f'menu{menu_code}-code{fund_code}-date{input_date}-save{save_date_yyyymmdd}'
 
-    mapping = {
-        '8186': regex_file_name_without_input_date,
-        '2160': regex_file_name_without_input_date,
-        '2205': regex_file_name_with_input_date,
-        '2305': regex_file_name_with_input_date,
-        '2820': regex_file_name_without_input_date,
+def is_dataset_downloaded(menu_code, fund_code, input_date, save_date_yyyymmdd, save_folder_path):
+    regex_file_name_snapshot = f'menu{menu_code}-code{fund_code}-date{input_date}-save{save_date_yyyymmdd}'
+    regex_file_name_timeseries = f'menu{menu_code}-code{fund_code}-to{input_date}-save{save_date_yyyymmdd}'
+
+    mapping_regex = {
+        '2160': regex_file_name_timeseries,
+        '2205': regex_file_name_snapshot,
+        '2305': regex_file_name_timeseries,
+        '2820': regex_file_name_timeseries,
+        '8186': regex_file_name_timeseries,
     }
-    regex_file_name = mapping[menu_code]
+
+    regex_file_name = mapping_regex[menu_code]
+
     print(f"- is dataset regex '{regex_file_name}' at '{save_folder_path}' downloaded?")
     lst = scan_files_including_regex(save_folder_path, regex_file_name)
     if len(lst) ==0:
@@ -156,7 +157,7 @@ def is_dataset_downloaded(menu_code, fund_code, input_date, save_date_yyyymmdd, 
     else:
         print(f'- yes: {fund_code} in {save_folder_path}')
         return True
-    
+
 def are_datasets_downloaded(menu_code, fund_codes, input_date, save_date_yyyymmdd, save_folder_path):
     dct = {}
     bucket_downloaded = []
@@ -171,13 +172,12 @@ def are_datasets_downloaded(menu_code, fund_codes, input_date, save_date_yyyymmd
     dct[f'{menu_code}_not_downloaded'] = bucket_not_downloaded
     return dct
     
-def wait_for_loading_to_disappear(loading_image, timeout=300):
+def wait_for_loading_to_disappear(image_path, timeout=300):
     """
     loading_image: 로딩 화면의 스크린샷 파일 경로 (예: 'loading.png')
     timeout: 함수가 지정한 시간(초) 동안 로딩 화면이 사라지지 않으면 중단 (기본값: 5분)
     """
     start_time = time.time()
-    
     while True:
         if time.time() - start_time > timeout:
             print("Timeout! Loading screen did not disappear within the specified time.")
@@ -185,7 +185,7 @@ def wait_for_loading_to_disappear(loading_image, timeout=300):
         
         try:
             # locateOnScreen 함수를 사용하여 로딩 화면이 화면에 있는지 확인
-            location = pyautogui.locateOnScreen(loading_image, confidence=0.8)
+            location = pyautogui.locateOnScreen(image_path, confidence=0.8)
             if location is None:
                 return True  # 로딩 화면이 없으면 함수 종료
         except ImageNotFoundException:
@@ -198,7 +198,7 @@ def wait_for_loading_to_disappear(loading_image, timeout=300):
 
 def click_image(image_path, confidence_level=0.8, timeout=10):
     """
-    image_path: 찾고자 하는 이미지의 파일 경로
+    image_path: 찾고자 하는 이미지의 파일 이름
     confidence_level: 이미지 탐색 정확도 (0 ~ 1 사이의 값)
     timeout: 이미지 탐색 최대 대기 시간 (초)
     
@@ -219,13 +219,6 @@ def click_image(image_path, confidence_level=0.8, timeout=10):
         time.sleep(1)
 
 def moveTo_image(image_path, confidence_level=0.8, timeout=10):
-    """
-    image_path: 찾고자 하는 이미지의 파일 경로
-    confidence_level: 이미지 탐색 정확도 (0 ~ 1 사이의 값)
-    timeout: 이미지 탐색 최대 대기 시간 (초)
-    
-    이미지를 찾으면 그 위치를 클릭하고 True를 반환하고, 찾지 못하면 False를 반환한다.
-    """
     start_time = time.time()
     while True:
         try:
@@ -246,13 +239,6 @@ def moveTo_image(image_path, confidence_level=0.8, timeout=10):
         time.sleep(1)
 
 def is_image_present(image_path, confidence_level=0.8, timeout=2):
-    """
-    image_path: 찾고자 하는 이미지의 파일 경로
-    confidence_level: 이미지 탐색 정확도 (0 ~ 1 사이의 값)
-    timeout: 이미지 탐색 최대 대기 시간 (초)
-    
-    이미지를 찾으면 True를 반환하고, 찾지 못하면 False를 반환한다.
-    """
     start_time = time.time()
     while True:
         try:
@@ -277,10 +263,13 @@ def cooltime(t=time_cooldown):
     return None
 
 def wait_loading():
+    image_folder = './image'
+    image_name = 'image-8186-loading.png'
+    image_path = os.path.join(image_folder, image_name)
     try:
-        if is_image_present('image-8186-loading.png', timeout=1):
+        if is_image_present(image_path, timeout=1):
             print('- step: wait loading...')
-            if wait_for_loading_to_disappear('image-8186-loading.png', timeout=300):
+            if wait_for_loading_to_disappear(image_path, timeout=300):
                 return True
             else:
                 print('Error: loading screen did not disappear within the specified time.')
@@ -294,7 +283,11 @@ def wait_loading():
 
 
 def wait_execution():
-    if is_image_present('image-excel-header.png', timeout=30):
+    image_folder = './image'
+    image_name = 'image-excel-header.png'
+    image_path = os.path.join(image_folder, image_name)
+
+    if is_image_present(image_path, timeout=30):
         return True
     else:
         return False
@@ -460,7 +453,7 @@ def control_on_2160_to_excel():
 
 # 2205
 def control_on_2205_to_set_inputs(fund_code, end_date):
-    reference_date = end_date
+    input_date = end_date
     print(f'- step: set inputs.')
     click(coord_2205_input_fund_code)
     time.sleep(time_interval)
@@ -470,11 +463,11 @@ def control_on_2205_to_set_inputs(fund_code, end_date):
     typewrite(list(fund_code))
 
     time.sleep(time_interval)
-    click(coord_2205_input_reference_date)
+    click(coord_2205_input_input_date)
     hotkey('ctrl', 'a')
     press('backspace')
     time.sleep(time_interval)
-    typewrite(list(reference_date))
+    typewrite(list(input_date))
 
     time.sleep(time_interval)
     click(coord_2205_search_go)
@@ -581,11 +574,20 @@ def control_on_2820_to_excel():
 
 
 class BOS:
-    def __init__(self, fund_code, end_date, start_date='20210101'):
+    def __init__(self, fund_code, end_date, start_date=None, file_folder=None):
         self.fund_code = fund_code
         self.start_date = start_date
         self.end_date = end_date
         self.menu_code = None
+        self.file_folder = file_folder if file_folder else self.set_file_folder()
+
+    def set_file_folder(self, file_folder=None):
+        root_foler = "C:\\Users\\danie\\Documents"
+        download_folder = file_folder if file_folder is not None else f'DA-dataset-{get_today(form="yyyymmdd")}'
+        file_folder = os.path.join(root_foler, download_folder)
+        check_folder_and_create_folder(file_folder)
+        self.file_folder = file_folder
+        return file_folder
 
     def goto_menu(self, menu_code):
         self.menu_code = menu_code
@@ -597,9 +599,11 @@ class BOS:
         self.download_dataset_8186(),
 
     def download_dataset_8186(self):
-        self.file_name = f'menu{self.menu_code}-code{self.fund_code}-save{get_today(form="yyyymmdd")}.csv'
-        self.folder_path = folder_path
-        if is_dataset_downloaded(self.menu_code, self.fund_code, input_date=None, save_date_yyyymmdd=get_today(form='yyyymmdd'), save_folder_path=self.folder_path):
+        # self.file_name = f'menu{self.menu_code}-code{self.fund_code}-save{get_today(form="yyyymmdd")}.csv'
+        file_name_timeseries = f'menu{self.menu_code}-code{self.fund_code}-to{self.end_date}-save{get_today(form="yyyymmdd")}.csv'
+        self.file_name = file_name_timeseries
+
+        if is_dataset_downloaded(self.menu_code, self.fund_code, input_date=self.end_date, save_date_yyyymmdd=get_today(form='yyyymmdd'), save_folder_path=self.file_folder):
             terminate_excel()
         else:
             control_on_8186_to_fund_popup(self.start_date, self.end_date, self.fund_code)
@@ -610,11 +614,11 @@ class BOS:
             wait_execution()
             control_on_excel_to_save_as_popup()
             wait_loading()
-            control_on_save_as_popup(self.file_name, self.folder_path)
+            control_on_save_as_popup(self.file_name, self.file_folder)
             wait_loading()
             cooltime()
             self.download_dataset_8186()
-            print(f'- save complete: {self.file_name} in {self.folder_path}')
+            print(f'- save complete: {self.file_name} in {self.file_folder}')
             print(f'- step: return to home.')
             goto_home()
 
@@ -624,15 +628,17 @@ class MOS(BOS):
         mapping = {
             '2160': self.download_dataset_2160,
             '2205': self.download_dataset_2205,
-            '2305': self.download_dataset_2305,
+            # '2305': self.download_dataset_2305,
             '2820': self.download_dataset_2820
         }
         mapping[self.menu_code]()
 
     def download_dataset_2160(self):
-        self.file_name = f'menu{self.menu_code}-code{self.fund_code}-save{get_today(form="yyyymmdd")}.csv'
-        self.folder_path = folder_path
-        if is_dataset_downloaded(self.menu_code, self.fund_code, input_date=None, save_date_yyyymmdd=get_today(form='yyyymmdd'), save_folder_path=self.folder_path):
+        # self.file_name = f'menu{self.menu_code}-code{self.fund_code}-save{get_today(form="yyyymmdd")}.csv'
+        file_name_timeseries = f'menu{self.menu_code}-code{self.fund_code}-to{self.end_date}-save{get_today(form="yyyymmdd")}.csv'
+        self.file_name = file_name_timeseries
+
+        if is_dataset_downloaded(self.menu_code, self.fund_code, input_date=self.end_date, save_date_yyyymmdd=get_today(form='yyyymmdd'), save_folder_path=self.file_folder):
             terminate_excel()
         else:
             control_on_2160_to_set_inputs(self.fund_code, self.start_date, self.end_date)
@@ -641,20 +647,20 @@ class MOS(BOS):
             wait_execution()
             control_on_excel_to_save_as_popup()
             wait_loading()
-            control_on_save_as_popup(self.file_name, self.folder_path)
+            control_on_save_as_popup(self.file_name, self.file_folder)
             wait_loading()
             cooltime()
             self.download_dataset_2160()
-            print(f'- save complete: {self.file_name} in {self.folder_path}')
+            print(f'- save complete: {self.file_name} in {self.file_folder}')
             print(f'- step: return to home.')
             goto_home()
 
 
     def download_dataset_2205(self):
-        reference_date = self.end_date
-        self.file_name = f'menu{self.menu_code}-code{self.fund_code}-date{reference_date}-save{get_today(form="yyyymmdd")}.csv'
-        self.folder_path = folder_path
-        if is_dataset_downloaded(self.menu_code, self.fund_code, reference_date, get_today(form='yyyymmdd'), self.folder_path):
+        input_date = self.end_date
+        file_name_snapshot = f'menu{self.menu_code}-code{self.fund_code}-date{input_date}-save{get_today(form="yyyymmdd")}.csv'
+        self.file_name = file_name_snapshot
+        if is_dataset_downloaded(self.menu_code, self.fund_code, input_date, get_today(form='yyyymmdd'), self.file_folder):
             terminate_excel()
         else:
             control_on_2205_to_set_inputs(self.fund_code, self.end_date)
@@ -663,43 +669,41 @@ class MOS(BOS):
             wait_execution()
             control_on_excel_to_save_as_popup()
             wait_loading()
-            control_on_save_as_popup(self.file_name, self.folder_path)
+            control_on_save_as_popup(self.file_name, self.file_folder)
             wait_loading()
             cooltime()
             self.download_dataset_2205()
-            print(f'- save complete: {self.file_name} in {self.folder_path}')
+            print(f'- save complete: {self.file_name} in {self.file_folder}')
             print(f'- step: return to home.')
             goto_home()
 
-    def download_dataset_2305(self):
-        self.file_name = f'menu{self.menu_code}-code{self.fund_code}-date{self.start_date}_{self.end_date}-save{get_today(form="yyyymmdd")}.csv'
-        self.folder_path = folder_path
-        if is_dataset_downloaded(self.menu_code, self.fund_code, input_date=f'{self.start_date}_{self.end_date}', save_date_yyyymmdd=get_today(form='yyyymmdd'), save_folder_path=self.folder_path):
-            terminate_excel()
-        else:
-            control_on_2305_to_set_inputs(self.fund_code, self.start_date, self.end_date)
-            wait_loading()
-            control_on_2305_to_excel()
-            wait_execution()
-            control_on_excel_to_save_as_popup()
-            wait_loading()
-            control_on_save_as_popup(self.file_name, self.folder_path)
-            wait_loading()
-            cooltime()
-            self.download_dataset_2305()
-            print(f'- save complete: {self.file_name} in {self.folder_path}')
-            print(f'- step: return to home.')
-            goto_home()
+    # def download_dataset_2305(self):
+    #     file_name_timeseries = f'menu{self.menu_code}-code{self.fund_code}-to{self.end_date}-save{get_today(form="yyyymmdd")}.csv'
+    #     self.file_name = file_name_timeseries
+    #     if is_dataset_downloaded(self.menu_code, self.fund_code, input_date=f'{self.start_date}_{self.end_date}', save_date_yyyymmdd=get_today(form='yyyymmdd'), save_folder_path=self.file_folder):
+    #         terminate_excel()
+    #     else:
+    #         control_on_2305_to_set_inputs(self.fund_code, self.start_date, self.end_date)
+    #         wait_loading()
+    #         control_on_2305_to_excel()
+    #         wait_execution()
+    #         control_on_excel_to_save_as_popup()
+    #         wait_loading()
+    #         control_on_save_as_popup(self.file_name, self.file_folder)
+    #         wait_loading()
+    #         cooltime()
+    #         self.download_dataset_2305()
+    #         print(f'- save complete: {self.file_name} in {self.file_folder}')
+    #         print(f'- step: return to home.')
+    #         goto_home()
 
 
 
     def download_dataset_2820(self):
-        reference_date = self.end_date
-        # self.file_name = f'menu{self.menu_code}-code{self.fund_code}-date{reference_date}-save{get_today()}.csv'
-        self.file_name = f'menu{self.menu_code}-code{self.fund_code}-save{get_today(form="yyyymmdd")}.csv'
-        self.folder_path = folder_path
-        if is_dataset_downloaded(self.menu_code, self.fund_code, reference_date, get_today(form='yyyymmdd'), self.folder_path):
-            print(f'-  complete: {self.file_name} in {self.folder_path}')
+        file_name_timeseries = f'menu{self.menu_code}-code{self.fund_code}-to{self.end_date}-save{get_today(form="yyyymmdd")}.csv'
+        self.file_name = file_name_timeseries
+        if is_dataset_downloaded(self.menu_code, self.fund_code, self.end_date, get_today(form='yyyymmdd'), self.file_folder):
+            print(f'-  complete: {self.file_name} in {self.file_folder}')
             terminate_excel()
         else:
             control_on_2820_to_set_inputs(self.fund_code, self.start_date, self.end_date)
@@ -708,11 +712,11 @@ class MOS(BOS):
             wait_execution()
             control_on_excel_to_save_as_popup()
             wait_loading()
-            control_on_save_as_popup(self.file_name, self.folder_path)
+            control_on_save_as_popup(self.file_name, self.file_folder)
             wait_loading()
             cooltime()
             self.download_dataset_2820()
-            print(f'- save complete: {self.file_name} in {self.folder_path}')
+            print(f'- save complete: {self.file_name} in {self.file_folder}')
             print(f'- step: return to home.')
             goto_home()
 
@@ -723,25 +727,6 @@ def get_office_system(system_name, fund_code, start_date, end_date):
     }
     return mapping[system_name](fund_code, start_date=start_date, end_date=end_date)
 
-def check_download_results(menu_code, fund_code, input_date, save_date_yyyymmdd, save_folder_path):
-    # file_name_without_input_date = f'menu{menu_code}-code{fund_code}-date{input_date}-save{save_date_yyyymmdd}.csv'
-    file_name_without_input_date = f'menu{menu_code}-code{fund_code}-save{save_date_yyyymmdd}.csv'
-    file_name_with_input_date = f'menu{menu_code}-code{fund_code}-date{input_date}-save{save_date_yyyymmdd}.csv'
-
-    mapping = {
-        '8186': file_name_without_input_date,
-        '2160': file_name_without_input_date,
-        '2205': file_name_with_input_date,
-        '2820': file_name_without_input_date
-    }
-    file_name = mapping[menu_code]
-    file_path = os.path.join(save_folder_path, file_name)
-    if os.path.exists(file_path):
-        print(f'- check: {file_name} in {folder_path}')
-        return True
-    else:
-        print(f'- check: {file_name} in {folder_path}')
-        return False
 
 class DownloaderMacro:
     def __init__(self, fund_code, end_date, start_date='20210101'):
